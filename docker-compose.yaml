@@ -1,0 +1,33 @@
+version: '3'
+
+services:
+  webserver:
+    container_name: klarna_mathweb
+    build: .
+    
+    environment:
+      - RECURSION_LIMIT=5000
+      - WOLFRAM_APP_ID=X74QVA-VGY2PE7YYG
+      - REDIS_HOST=redis
+    ports: 
+      - 5001:8000
+    depends_on:
+      - redis
+  
+  redis:
+    container_name: klarna_redis
+    image: redis:5.0.6-alpine  # make it lightweight
+    volumes:
+      - ./data/redis:/data  # make it persistent
+    entrypoint: redis-server --appendonly yes
+    restart: always
+
+  prometheus:
+    container_name: klarna_prometheus
+    image: prom/prometheus:latest   
+    volumes:
+      - ./prometheus.yaml:/etc/prometheus/prometheus.yml
+      - ./data/prometheus:/prometheus-data
+    restart: always
+    ports:
+      - 9090:9090

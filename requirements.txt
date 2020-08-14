@@ -1,0 +1,5 @@
+Flask==1.1.1
+Flask-RESTful==0.3.7
+wolframalpha==3.0.1
+redis==3.3.8
+prometheus-client==0.7.1

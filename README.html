@@ -1,0 +1,104 @@
+﻿<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>README</title>
+  <link rel="stylesheet" href="https://stackedit.io/style.css" />
+</head>
+
+<body class="stackedit">
+  <div class="stackedit__html"><h1 id="klarna-mathweb-stack">Klarna Mathweb Stack</h1>
+<p>This assignment demonstrates a simple REST Api. The project is structured in the following way:</p>
+<pre><code>.                             # ROOT  
+├── Dockerfile                # The Docker build file for the Webserver  
+├── README.md                 # This file  
+├── data                      # Persistence data for redis and prometheus  
+│   ├── prometheus  
+│   └── redis  
+│       └── appendonly.aof    # Redis storage  
+├── docker-compose.yaml       # docker-compose file - configure variables here.  
+├── gunicorn_config.py        # gunicorn server configuration  
+├── klarnachallenge           # source directory  
+│   ├── __init__.py  
+│   ├── config.py  
+│   ├── errors.py  
+│   ├── functions.py  
+│   ├── middleware.py  
+│   └── server.py  
+├── prometheus.yaml           # Prometheus configuration  
+├── requirements.txt          # Python Requirements  
+├── run-development.py  
+├── test                      # unittest directory.  
+│   ├── __init__.py  
+│   ├── fibonacci.csv  
+│   ├── test_ackermann_as_a_service.py  
+│   ├── test_math.py  
+│   └── test_redis.py  
+...  
+</code></pre>
+<p>For this project, I decided to use docker. The stack consists of three components,<br>
+the Web Server to run the application code. Besides the Server, Redis is used for caching intermediate results.<br>
+For the metrics, Prometheus is used to collect metrics from the Web Server.<br>
+The Python 3 based Dockerfile uses an Alpine Linux base image and runs the Web Server - in this case GUnicorn.</p>
+<h2 id="run-the-docker-stack">Run the docker stack</h2>
+<p>The following requirements are necessary to run this:</p>
+<ul>
+<li>docker</li>
+<li>internet connection</li>
+</ul>
+<p>To run the stack go in the ROOT directory and call <code>docker-compose up</code></p>
+<h2 id="endpoints">Endpoints</h2>
+<p>Now, to the functions. The API exposes all functions on the following endpoints:</p>
+<pre><code>http://localhost:5001/functions/simple/fibonacci/&lt;signed_int:x&gt;  
+http://localhost:5001/functions/simple/ackermann/&lt;int:m&gt;/&lt;int:n&gt;  
+http://localhost:5001/functions/simple/factorial/&lt;signed_int:x&gt;  
+http://localhost:5001/functions/advanced/ackermann/&lt;int:m&gt;/&lt;int:n&gt;  
+http://localhost:5001/functions/service/ackermann/&lt;int:m&gt;/&lt;int:n&gt;  
+</code></pre>
+<p>There are 3 “simple” functions in place, and only 2 “advanced” ones - 2 of which are of type ‘ackermann’.<br>
+Let me explain why:<br>
+<em>Fibonacci Simple</em> is using the <em>lru cache feature</em>, which makes it kinda <em>advanced</em> already.</p>
+<p>In my opinion, <em>Factorial Simple</em> doesn’t need an advanced version for this demo - It’s fast enough already (for the demo).</p>
+<p>Which leaves us with the option to try different approaches for the hardest optimization problem: the <em>Ackermann</em> function.<br>
+The <em>Simple Ackermann</em> is trying to mitigate the problem by using the lru cache, which improves runtime significant.<br>
+But this cache is non-persistent and theoretically limited by memory. I decided to focus on 2 different approaches to<br>
+optimize this function:</p>
+<h2 id="the-cached-ackermann">The <em>Cached Ackermann</em></h2>
+<p>Storing intermediate results of the Ackermann function in a redis hash and retrieving it once needed.<br>
+The Idea is that the more Ackermann functions we calculated, the less we need to calculate in the future.<br>
+Explanation: An Ackermann function call can look like this:</p>
+<p><img src="img/ackermann_2_2_graph.gif" alt=""></p>
+<p>A lot of calculations are required to get the final result. Let’s assume, we calculated Ackermann(2, 2) before.<br>
+A(0,6), A(0,5), A(0,3), A(1, 5) … are stored in redis and would not require further incremental calculation.<br>
+This storing of the sub-results decrease the required calculations for other Ackermann function.<br>
+For instance, Ackermann(2,1) would not require any calculation and could be looked up from cache directly.</p>
+<h2 id="the-ackermann-as-a-service">The <em>Ackermann as a Service</em></h2>
+<p>This approach is more for fun and is using the WolframAlpha computation service. A simple web request gives us the<br>
+correct result without wasing any of <em>our own</em> computation power. It is not very practical and also slower,<br>
+but if the requirement is “low energy and less cpu”, this approach might be a good alternative.</p>
+<h2 id="bonus---logging">Bonus - Logging</h2>
+<p>As mentioned above, Prometheus is collecting some metrics from the Webserver.<br>
+There can be a lot of interesting metrics to monitor. It would be nice to monitor the cache utilization and memory usage<br>
+of the algorithms. But the most interesting metric is the request latency for each endpoint.<br>
+The <em>middleware</em> implements this function and exposes the results on a dedicated <code>/metics</code> Endpoint to Prometheus.</p>
+<blockquote>
+<p>Note: For this demo, there is no authentication in place on this endpoint - everyone could scrape the metrics from our API - not good. But for demo purposes, i’ll keep it simple. Just mentioning…</p>
+</blockquote>
+<p><img src="img/prometheus.png" alt=""></p>
+<blockquote>
+<p>Prometheus is running on <a href="http://localhost:9090">http://localhost:9090</a></p>
+</blockquote>
+<p>Of course, Grafana could be added to visualize data in a nice way, but out of scope for this challenge.</p>
+<h2 id="known-problems-and-improvments">Known problems and improvments</h2>
+<p>The solution is not perfect. Ackermann calculations itself grow very (!!) fast in size and the halting problem is still<br>
+a thing in computer science ;-). Our server crashes after X recursion and gives up.</p>
+<p>Metrics can and should be extended and improved in a real system. I hope you have as much fun playing around with<br>
+this demo as I had building it.</p>
+<p>Greetings and happy testing!<br>
+Christoph</p>
+</div>
+</body>
+
+</html>
